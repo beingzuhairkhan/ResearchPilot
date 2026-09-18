@@ -87,90 +87,122 @@ export class ResearchController {
   }
 
   @Get(':id/stream')
-  @ApiOperation({ summary: 'SSE stream of research progress events' })
-  async streamResearch(
-    @Param('id') id: string,
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.flushHeaders();
-    res.write('retry: 3000\n\n');
+@ApiOperation({ summary: 'SSE stream of research progress events' })
+async streamResearch(
+  @Param('id') id: string,
+  @Req() req: Request,
+  @Res() res: Response,
+) {
+  console.log(`[SSE] Client connecting for research ID: ${id}`);
 
-    let closed = false;
-    let keepAlive: NodeJS.Timeout;
-    let unsubscribe: () => void = () => { };
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write('retry: 3000\n\n');
 
-    // Declared up front so nothing that runs before subscribe/backlog-flush
-    // can hit it in the temporal dead zone.
-    const cleanup = () => {
-      if (closed) return;
-      closed = true;
-      clearInterval(keepAlive);
-      unsubscribe();
-    };
+  console.log(`[SSE] Headers flushed for research ID: ${id}`);
 
-    const sentEventIds = new Set<string>();
+  let closed = false;
+  let keepAlive: NodeJS.Timeout;
+  let unsubscribe: () => void = () => {};
 
-    const writeEvent = (evt: ResearchProgressEvent) => {
-      if (closed) return;
-      if (evt.id && sentEventIds.has(evt.id)) return;
+  const cleanup = () => {
+    if (closed) return;
+    console.log(`[SSE] Cleaning up connection for research ID: ${id}`);
+    closed = true;
+    clearInterval(keepAlive);
+    unsubscribe();
+  };
 
-      try {
-        if (evt.id) {
-          res.write(`id: ${evt.id}\n`);
-          sentEventIds.add(evt.id);
-        }
-        res.write(`event: ${evt.event}\n`);
-        res.write(`data: ${JSON.stringify(evt)}\n\n`);
-      } catch (err) {
-        cleanup();
-      }
-    };
+  const sentEventIds = new Set<string>();
 
-    // Subscribe immediately so no live events are missed, but hold them in a
-    // buffer until the historical backlog has been flushed, so ordering and
-    // de-duplication stay correct.
-    const buffer: ResearchProgressEvent[] = [];
-    let backlogFlushed = false;
-    const bufferingWriter = (evt: ResearchProgressEvent) => {
-      if (!backlogFlushed) {
-        buffer.push(evt);
-      } else {
-        writeEvent(evt);
-      }
-    };
-
-    unsubscribe = this.eventsService.subscribe(id, bufferingWriter);
-
-    const lastEventId = req.headers['last-event-id'] as string | undefined;
-    const recentEvents = lastEventId
-      ? this.eventsService.getEventsSince(id, lastEventId)
-      : this.eventsService.getRecentEvents(id);
-
-    for (const evt of recentEvents) {
-      writeEvent(evt);
+  const writeEvent = (evt: ResearchProgressEvent) => {
+    if (closed) {
+      console.log(`[SSE] Skipping write, connection closed. event=${evt.event} id=${evt.id}`);
+      return;
+    }
+    if (evt.id && sentEventIds.has(evt.id)) {
+      console.log(`[SSE] Skipping duplicate event id=${evt.id}`);
+      return;
     }
 
-    backlogFlushed = true;
-    for (const evt of buffer) {
+    try {
+      console.log(`[SSE] Writing event for ${id}:`, {
+        id: evt.id,
+        event: evt.event,
+        progress: evt.progress,
+        message: evt.message,
+      });
+
+      if (evt.id) {
+        res.write(`id: ${evt.id}\n`);
+        sentEventIds.add(evt.id);
+      }
+      res.write(`event: ${evt.event}\n`);
+      res.write(`data: ${JSON.stringify(evt)}\n\n`);
+    } catch (err) {
+      console.error(`[SSE] Write failed for research ID: ${id}`, err);
+      cleanup();
+    }
+  };
+
+  const buffer: ResearchProgressEvent[] = [];
+  let backlogFlushed = false;
+  const bufferingWriter = (evt: ResearchProgressEvent) => {
+    if (!backlogFlushed) {
+      console.log(`[SSE] Buffering live event (backlog not flushed yet): ${evt.event} id=${evt.id}`);
+      buffer.push(evt);
+    } else {
       writeEvent(evt);
     }
-    buffer.length = 0;
+  };
 
-    keepAlive = setInterval(() => {
-      if (closed) return;
-      try {
-        res.write(': keepalive\n\n');
-      } catch {
-        cleanup();
-      }
-    }, 15000);
+  console.log(`[SSE] Subscribing to events for research ID: ${id}`);
+  unsubscribe = this.eventsService.subscribe(id, bufferingWriter);
+  console.log(`[SSE] Subscribed successfully for research ID: ${id}`);
 
-    res.on('close', cleanup);
-    req.on('close', cleanup);
+  const lastEventId = req.headers['last-event-id'] as string | undefined;
+  console.log(`[SSE] Last-Event-ID header: ${lastEventId ?? '(none)'}`);
+
+  const recentEvents = lastEventId
+    ? this.eventsService.getEventsSince(id, lastEventId)
+    : this.eventsService.getRecentEvents(id);
+
+  console.log(`[SSE] Found ${recentEvents.length} recent/backlog events for research ID: ${id}`);
+
+  for (const evt of recentEvents) {
+    writeEvent(evt);
   }
+
+  backlogFlushed = true;
+  console.log(`[SSE] Backlog flushed, replaying ${buffer.length} buffered live events for research ID: ${id}`);
+
+  for (const evt of buffer) {
+    writeEvent(evt);
+  }
+  buffer.length = 0;
+
+  keepAlive = setInterval(() => {
+    if (closed) return;
+    try {
+      console.log(`[SSE] Sending keepalive for research ID: ${id}`);
+      res.write(': keepalive\n\n');
+    } catch (err) {
+      console.error(`[SSE] Keepalive write failed for research ID: ${id}`, err);
+      cleanup();
+    }
+  }, 15000);
+
+  res.on('close', () => {
+    console.log(`[SSE] Response closed by client for research ID: ${id}`);
+    cleanup();
+  });
+
+  req.on('close', () => {
+    console.log(`[SSE] Request closed for research ID: ${id}`);
+    cleanup();
+  });
+}
 }
