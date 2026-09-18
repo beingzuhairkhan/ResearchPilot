@@ -9,18 +9,26 @@ interface CitationModalProps {
   onClose: () => void;
 }
 
-function formatDate(dateStr?: string) {
+function formatDate(dateStr?: string | null) {
   if (!dateStr) return 'Unknown date';
   try {
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return 'Unknown date';
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   } catch {
-    return dateStr;
+    return 'Unknown date';
   }
 }
 
 export function CitationModal({ index, sources, onClose }: CitationModalProps) {
-  console.log("S" , index , sources )
-  const source = index !== null ? sources.find((s) => s.index === index) : undefined;
+  const source =
+    index !== null
+      ? sources.find((s) => s.citationNumber === index)
+      : undefined;
 
   return (
     <Modal
@@ -41,7 +49,7 @@ export function CitationModal({ index, sources, onClose }: CitationModalProps) {
             Published {formatDate(source.publishedAt)}
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-neutral-50 p-3">
-            <Globe className="h-3.5 w-3.5 text-neutral-400" />
+            <Globe className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
             <span className="truncate text-xs text-neutral-500">{source.url}</span>
           </div>
           <Button

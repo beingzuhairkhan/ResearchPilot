@@ -7,7 +7,42 @@ interface FindingCardProps {
   onCitationClick: (index: number) => void;
 }
 
+function renderTextWithCitations(
+  text: unknown,
+  sources: CitationSource[],
+  onClick: (index: number) => void
+) {
+  if (typeof text !== 'string' || !text.trim()) {
+    return null;
+  }
+
+  const parts = text.split(/(\[\d+\])/g);
+
+  return parts.map((part, i) => {
+    const match = part.match(/^\[(\d+)\]$/);
+
+    if (match) {
+      const index = Number.parseInt(match[1], 10);
+
+      return (
+        <Citation
+          key={`citation-${index}-${i}`}
+          index={index}
+          sources={sources}
+          onClick={onClick}
+        />
+      );
+    }
+
+    return <span key={`text-${i}`}>{part}</span>;
+  });
+}
+
 export function FindingCard({ finding, sources, onCitationClick }: FindingCardProps) {
+  if (!finding || typeof finding.text !== 'string' || !finding.text.trim()) {
+    return null;
+  }
+
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-card transition-all hover:shadow-elevated">
       <div className="flex items-start gap-3">
@@ -15,13 +50,9 @@ export function FindingCard({ finding, sources, onCitationClick }: FindingCardPr
           {String(finding.id).padStart(2, '0').slice(-2)}
         </span>
         <div className="flex-1">
-          <p className="text-sm text-neutral-800 leading-relaxed">{finding.statement}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            {/* Added optional chaining and empty array fallback */}
-            {finding.citations?.map((ref) => (
-              <Citation key={ref} index={ref} sources={sources} onClick={onCitationClick} />
-            )) || null}
-          </div>
+          <p className="text-sm text-neutral-800 leading-relaxed">
+            {renderTextWithCitations(finding.text, sources, onCitationClick)}
+          </p>
         </div>
       </div>
     </div>

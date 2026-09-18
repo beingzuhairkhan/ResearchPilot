@@ -211,9 +211,7 @@ export function ReportViewer({
           </ReportSection>
         )}
 
-      {/* =====================================================
-          Key Findings
-      ===================================================== */}
+
       {keyFindings.length > 0 && (
         <ReportSection
           title="Key Findings"
@@ -232,9 +230,6 @@ export function ReportViewer({
         </ReportSection>
       )}
 
-      {/* =====================================================
-          Conflicting Evidence
-      ===================================================== */}
       {Array.isArray(report.conflictingEvidence) &&
         report.conflictingEvidence.length > 0 && (
           <ReportSection
@@ -256,9 +251,6 @@ export function ReportViewer({
           </ReportSection>
         )}
 
-      {/* =====================================================
-          Recent Developments
-      ===================================================== */}
       {recentDevelopments.length > 0 && (
         <ReportSection title="Recent Developments">
           <ul className="space-y-2.5">
@@ -284,9 +276,7 @@ export function ReportViewer({
         </ReportSection>
       )}
 
-      {/* =====================================================
-          Methodology
-      ===================================================== */}
+
       {methodologySteps.length > 0 && (
         <ReportSection
           title="Methodology"
@@ -311,9 +301,6 @@ export function ReportViewer({
         </ReportSection>
       )}
 
-      {/* =====================================================
-          Limitations
-      ===================================================== */}
       {limitations.length > 0 && (
         <ReportSection title="Limitations">
           <ul className="space-y-2">
@@ -331,9 +318,6 @@ export function ReportViewer({
         </ReportSection>
       )}
 
-      {/* =====================================================
-          Sources
-      ===================================================== */}
       {sources.length > 0 && (
         <CitationList sources={sources} />
       )}

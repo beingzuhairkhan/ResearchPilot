@@ -56,25 +56,6 @@ export function ResearchReport() {
           return;
         }
 
-        console.log('Report API response:', rep);
-        console.log('Research API response:', ses);
-
-        /*
-         * Your API response is:
-         *
-         * {
-         *   success: true,
-         *   data: {
-         *     title: "...",
-         *     executiveSummary: "...",
-         *     keyFindings: [...],
-         *     sources: [...]
-         *   }
-         * }
-         *
-         * Therefore we need rep.data here.
-         */
-
         const reportData = rep?.data ?? rep;
 
         if (!reportData) {
@@ -149,9 +130,6 @@ export function ResearchReport() {
     navigate(`/research/${id}`);
   };
 
-  /*
-   * Loading state
-   */
   if (loading) {
     return (
       <PageContainer maxWidth="lg">
@@ -162,9 +140,7 @@ export function ResearchReport() {
     );
   }
 
-  /*
-   * Error state
-   */
+
   if (error || !report) {
     return (
       <PageContainer maxWidth="md">
@@ -180,16 +156,11 @@ export function ResearchReport() {
     );
   }
 
-  /*
-   * Sources used by the citation modal.
-   */
   const sources: CitationSource[] = report.sources ?? [];
 
   return (
     <PageContainer maxWidth="lg">
-      {/* =========================================================
-          Report Header
-      ========================================================= */}
+
       <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-6 shadow-card">
         {/* Back button */}
         <div className="flex items-center gap-2 text-xs text-neutral-400">

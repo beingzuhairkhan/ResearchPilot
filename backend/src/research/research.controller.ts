@@ -26,7 +26,7 @@ export class ResearchController {
   constructor(
     private readonly researchService: ResearchService,
     private readonly eventsService: ResearchEventsService,
-  ) {}
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Create a new research session' })
@@ -86,29 +86,45 @@ export class ResearchController {
 
   @Get(':id/stream')
   @ApiOperation({ summary: 'SSE stream of research progress events' })
-  async streamResearch(@Param('id') id: string, @Res() res: Response) {
+  async streamResearch(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
-    const recentEvents = this.eventsService.getRecentEvents(id);
-    for (const evt of recentEvents) {
+    let closed = false;
+
+    const writeEvent = (evt: any) => {
+      if (closed) return;
+
       res.write(`event: ${evt.event}\n`);
       res.write(`data: ${JSON.stringify(evt)}\n\n`);
+    };
+
+    const unsubscribe = this.eventsService.subscribe(
+      id,
+      writeEvent,
+    );
+
+    const recentEvents =
+      this.eventsService.getRecentEvents(id);
+
+    for (const evt of recentEvents) {
+      writeEvent(evt);
     }
 
-    const unsubscribe = this.eventsService.subscribe(id, (evt) => {
-      res.write(`event: ${evt.event}\n`);
-      res.write(`data: ${JSON.stringify(evt)}\n\n`);
-    });
-
     const keepAlive = setInterval(() => {
-      res.write(': keepalive\n\n');
+      if (!closed) {
+        res.write(': keepalive\n\n');
+      }
     }, 15000);
 
     res.on('close', () => {
+      closed = true;
       clearInterval(keepAlive);
       unsubscribe();
     });
