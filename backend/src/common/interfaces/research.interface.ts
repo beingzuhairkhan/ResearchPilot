@@ -142,6 +142,8 @@ export interface ResearchSessionData {
 }
 
 export interface ResearchProgressEvent {
+  id: string;
+  seq: number;
   researchId: string;
   event: string;
   progress: number;

@@ -56,16 +56,13 @@ export class ResearchOrchestratorService {
       await this.repository.setStartedAt(researchId);
 
       // STEP 1: PLANNING
-      console.log('[STEP 1] PLANNING', {
-        researchId,
+      await this.updateStage(researchId, ResearchStatus.PLANNING, 'Planning research tasks');
+      this.publishEvent(researchId, ResearchEventType.PLANNING, 'Planning research tasks', {
         question: session.question,
         mode: session.mode,
         includeNews: session.includeNews,
         includeScholar: session.includeScholar,
       });
-
-      await this.updateStage(researchId, ResearchStatus.PLANNING, 'Planning research tasks');
-      this.publishEvent(researchId, ResearchEventType.PLANNING, 'Planning research tasks');
 
       const plan = await this.plannerService.plan(
         session.question,
@@ -74,13 +71,14 @@ export class ResearchOrchestratorService {
         session.includeScholar,
       );
 
-      console.log('[STEP 1] PLAN RESULT', {
+      this.publishEvent(researchId, ResearchEventType.PLAN_CREATED, `Created ${plan.tasks.length} research tasks`, {
         taskCount: plan.tasks.length,
         tasks: plan.tasks,
       });
 
       // STEP 2: SEARCHING
-      console.log('[STEP 2] SEARCHING', {
+      await this.updateStage(researchId, ResearchStatus.SEARCHING, 'Searching sources');
+      this.publishEvent(researchId, ResearchEventType.SEARCH_STARTED, 'Searching sources', {
         taskCount: plan.tasks.length,
         maxSources: session.maxSources,
         includeScholar: session.includeScholar,
@@ -92,16 +90,16 @@ export class ResearchOrchestratorService {
         session.includeScholar,
       );
 
-      console.log('[STEP 2] SEARCH RESULT', {
+      const resultCount = taskResults.reduce((total, task) => total + task.results.length, 0);
+
+      this.publishEvent(researchId, ResearchEventType.SEARCH_COMPLETED, `Found ${resultCount} results`, {
         taskResultsCount: taskResults.length,
-        resultCount: taskResults.reduce(
-          (total, task) => total + task.results.length,
-          0,
-        ),
+        resultCount,
       });
 
       // STEP 3: COLLECTING SOURCES
-      console.log('[STEP 3] COLLECTING SOURCES', {
+      await this.updateStage(researchId, ResearchStatus.COLLECTING, 'Collecting sources');
+      this.publishEvent(researchId, ResearchEventType.SOURCES_COLLECTED, 'Collecting sources', {
         taskResultsCount: taskResults.length,
       });
 
@@ -113,17 +111,17 @@ export class ResearchOrchestratorService {
         session.maxSources,
       );
 
-      const dedupedSources =
-        await this.sourcesService.deduplicateSources(researchId);
+      const dedupedSources = await this.sourcesService.deduplicateSources(researchId);
 
-      console.log('[STEP 3] SOURCES RESULT', {
+      this.publishEvent(researchId, ResearchEventType.DEDUPLICATION_COMPLETED, `Deduplicated to ${dedupedSources.length} sources`, {
         allResults: allResults.length,
         sources: sources.length,
         dedupedSources: dedupedSources.length,
       });
 
       // STEP 4: PROCESSING
-      console.log('[STEP 4] PROCESSING', {
+      await this.updateStage(researchId, ResearchStatus.PROCESSING, 'Extracting content from sources');
+      this.publishEvent(researchId, ResearchEventType.PROCESSING_STARTED, 'Extracting content from sources', {
         sourceCount: dedupedSources.length,
       });
 
@@ -148,18 +146,14 @@ export class ResearchOrchestratorService {
         }
       }
 
-      console.log('[STEP 4] PROCESSING RESULT', {
-        processedSources: dedupedSources.length,
-      });
-
       // STEP 5: INDEXING
-      console.log('[STEP 5] INDEXING', {
+      await this.updateStage(researchId, ResearchStatus.INDEXING, 'Indexing sources');
+      this.publishEvent(researchId, ResearchEventType.INDEXING_STARTED, 'Indexing sources', {
         researchId,
         sourceCount: dedupedSources.length,
       });
 
-      const processedSources =
-        await this.sourceModel.find({ researchId }).exec();
+      const processedSources = await this.sourceModel.find({ researchId }).exec();
 
       let totalChunks = 0;
 
@@ -174,35 +168,24 @@ export class ResearchOrchestratorService {
             title: source.title,
             url: source.url,
             domain: source.domain,
-            publishedAt: source.publishedAt
-              ? source.publishedAt.toISOString()
-              : null,
+            publishedAt: source.publishedAt ? source.publishedAt.toISOString() : null,
           },
         );
 
         totalChunks += chunks;
       }
 
-      console.log('[STEP 5] INDEXING RESULT', {
-        processedSources: processedSources.length,
-        totalChunks,
-      });
-
       // STEP 6: RAG RETRIEVAL
-      console.log('[STEP 6] RAG RETRIEVAL', {
-        question: session.question,
-        topK: 15,
-      });
-
       const evidence = await this.ragService.retrieveEvidence(
         researchId,
         session.question,
         15,
       );
 
-      console.log('[STEP 6] RAG RESULT', {
+      this.publishEvent(researchId, ResearchEventType.RAG_COMPLETED, `Retrieved ${evidence.length} evidence chunks`, {
+        processedSources: processedSources.length,
+        totalChunks,
         evidenceCount: evidence.length,
-        evidence,
       });
 
       // STEP 7: ANALYZING
@@ -213,12 +196,11 @@ export class ResearchOrchestratorService {
         domain: s.domain,
         snippet: s.snippet,
         content: s.content,
-        publishedAt: s.publishedAt
-          ? s.publishedAt.toISOString()
-          : null,
+        publishedAt: s.publishedAt ? s.publishedAt.toISOString() : null,
       }));
 
-      console.log('[STEP 7] ANALYZING', {
+      await this.updateStage(researchId, ResearchStatus.ANALYZING, 'Analyzing evidence and extracting claims');
+      this.publishEvent(researchId, ResearchEventType.ANALYSIS_STARTED, 'Analyzing evidence and extracting claims', {
         question: session.question,
         evidenceCount: evidence.length,
         sourceCount: sourceInfos.length,
@@ -230,36 +212,22 @@ export class ResearchOrchestratorService {
         sourceInfos,
       );
 
-      console.log('[STEP 7] ANALYSIS RESULT', {
-        claimCount: analysis.claims.length,
-        claims: analysis.claims,
-      });
-
       // STEP 8: COMPARING
-      console.log('[STEP 8] COMPARING', {
-        claimCount: analysis.claims.length,
-        question: session.question,
-      });
+      await this.updateStage(researchId, ResearchStatus.COMPARING, 'Comparing claims across sources');
 
       const comparison = await this.comparisonService.compare(
         analysis.claims,
         session.question,
       );
 
-      console.log('[STEP 8] COMPARISON RESULT', {
+      this.publishEvent(researchId, ResearchEventType.COMPARISON_COMPLETED, `Found ${comparison.agreements.length} agreements, ${comparison.conflicts.length} conflicts`, {
+        claimCount: analysis.claims.length,
         conflicts: comparison.conflicts.length,
         agreements: comparison.agreements.length,
       });
 
       // STEP 9: REPORT GENERATION
-      console.log('[STEP 9] REPORT GENERATION', {
-        question: session.question,
-        taskCount: plan.tasks.length,
-        claimCount: analysis.claims.length,
-        sourceCount: sourceInfos.length,
-        conflicts: comparison.conflicts.length,
-        agreements: comparison.agreements.length,
-      });
+      await this.updateStage(researchId, ResearchStatus.GENERATING_REPORT, 'Generating report');
 
       const metrics = await this.calculateMetrics(
         researchId,
@@ -268,7 +236,15 @@ export class ResearchOrchestratorService {
         plan.tasks.length,
       );
 
-      console.log('[STEP 9] METRICS', metrics);
+      this.publishEvent(researchId, ResearchEventType.REPORT_STARTED, 'Generating report', {
+        question: session.question,
+        taskCount: plan.tasks.length,
+        claimCount: analysis.claims.length,
+        sourceCount: sourceInfos.length,
+        conflicts: comparison.conflicts.length,
+        agreements: comparison.agreements.length,
+        metrics,
+      });
 
       const reportData = await this.reporterService.generateReport({
         question: session.question,
@@ -284,13 +260,6 @@ export class ResearchOrchestratorService {
         })),
         metrics,
       });
-
-      console.log('[STEP 9] REPORT RESULT', {
-        reportData,
-      });
-
-      // ... existing save/update/complete code
-
 
       // Store report in MongoDB
       const report = new this.reportModel({
@@ -311,6 +280,7 @@ export class ResearchOrchestratorService {
         conflictingClaims: comparison.conflicts.length,
       });
 
+      await this.updateStage(researchId, ResearchStatus.COMPLETED, 'Research completed');
       this.publishEvent(researchId, ResearchEventType.COMPLETED, 'Research completed', {
         reportId: report._id.toString(),
       });
@@ -319,12 +289,12 @@ export class ResearchOrchestratorService {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`[Orchestrator] Research failed: ${message}`, error instanceof Error ? error.stack : undefined);
       await this.repository.setFailed(researchId, message);
+      await this.updateStage(researchId, ResearchStatus.FAILED, `Research failed: ${message}`);
       this.publishEvent(researchId, ResearchEventType.FAILED, `Research failed: ${message}`, {
         error: message,
       });
     }
   }
-
   private async updateStage(researchId: string, status: ResearchStatus, step: string): Promise<void> {
     const progress = STAGE_PROGRESS[status] || 0;
     await this.repository.updateStatus(researchId, status, progress, step);

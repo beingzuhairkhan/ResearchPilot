@@ -9,14 +9,16 @@ import {
   Res,
   NotFoundException,
   Logger,
+  Req,
 } from '@nestjs/common';
-import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { ResearchService } from './research.service';
 import { CreateResearchDto } from './dto/create-research.dto';
 import { ResearchQueryDto } from './dto/research-query.dto';
 import { SourceQueryDto } from './dto/source-query.dto';
 import { ResearchEventsService } from '../events/research-events.service';
+import { ResearchProgressEvent } from '@/common/interfaces/research.interface';
+import { Request, Response } from 'express';
 
 @ApiTags('research')
 @Controller('research')
@@ -84,75 +86,91 @@ export class ResearchController {
     return { success: true, ...result };
   }
 
- @Get(':id/stream')
-@ApiOperation({ summary: 'SSE stream of research progress events' })
-async streamResearch(
-  @Param('id') id: string,
-  @Res() res: Response,
-) {
-  console.log(`[SSE] Client connected for research ID: ${id}`);
+  @Get(':id/stream')
+  @ApiOperation({ summary: 'SSE stream of research progress events' })
+  async streamResearch(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+    res.write('retry: 3000\n\n');
 
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
+    let closed = false;
+    let keepAlive: NodeJS.Timeout;
+    let unsubscribe: () => void = () => { };
 
-  console.log(`[SSE] Headers flushed for research ID: ${id}`);
+    // Declared up front so nothing that runs before subscribe/backlog-flush
+    // can hit it in the temporal dead zone.
+    const cleanup = () => {
+      if (closed) return;
+      closed = true;
+      clearInterval(keepAlive);
+      unsubscribe();
+    };
 
-  let closed = false;
+    const sentEventIds = new Set<string>();
 
-  const writeEvent = (evt: any) => {
-    if (closed) {
-      console.log(
-        `[SSE] Attempted to write event after connection closed: ${id}`,
-      );
-      return;
+    const writeEvent = (evt: ResearchProgressEvent) => {
+      if (closed) return;
+      if (evt.id && sentEventIds.has(evt.id)) return;
+
+      try {
+        if (evt.id) {
+          res.write(`id: ${evt.id}\n`);
+          sentEventIds.add(evt.id);
+        }
+        res.write(`event: ${evt.event}\n`);
+        res.write(`data: ${JSON.stringify(evt)}\n\n`);
+      } catch (err) {
+        cleanup();
+      }
+    };
+
+    // Subscribe immediately so no live events are missed, but hold them in a
+    // buffer until the historical backlog has been flushed, so ordering and
+    // de-duplication stay correct.
+    const buffer: ResearchProgressEvent[] = [];
+    let backlogFlushed = false;
+    const bufferingWriter = (evt: ResearchProgressEvent) => {
+      if (!backlogFlushed) {
+        buffer.push(evt);
+      } else {
+        writeEvent(evt);
+      }
+    };
+
+    unsubscribe = this.eventsService.subscribe(id, bufferingWriter);
+
+    const lastEventId = req.headers['last-event-id'] as string | undefined;
+    const recentEvents = lastEventId
+      ? this.eventsService.getEventsSince(id, lastEventId)
+      : this.eventsService.getRecentEvents(id);
+
+    for (const evt of recentEvents) {
+      writeEvent(evt);
     }
 
-    console.log(`[SSE] Sending event for ${id}:`, evt);
+    backlogFlushed = true;
+    for (const evt of buffer) {
+      writeEvent(evt);
+    }
+    buffer.length = 0;
 
-    res.write(`event: ${evt.event}\n`);
-    res.write(`data: ${JSON.stringify(evt)}\n\n`);
-  };
+    keepAlive = setInterval(() => {
+      if (closed) return;
+      try {
+        res.write(': keepalive\n\n');
+      } catch {
+        cleanup();
+      }
+    }, 15000);
 
-  console.log(`[SSE] Subscribing to events for research ID: ${id}`);
-
-  const unsubscribe = this.eventsService.subscribe(
-    id,
-    writeEvent,
-  );
-
-  console.log(`[SSE] Subscribed successfully for research ID: ${id}`);
-
-  const recentEvents =
-    this.eventsService.getRecentEvents(id);
-
-  console.log(
-    `[SSE] Found ${recentEvents.length} recent events for research ID: ${id}`,
-  );
-
-  for (const evt of recentEvents) {
-    console.log(`[SSE] Sending recent event for ${id}:`, evt);
-    writeEvent(evt);
+    res.on('close', cleanup);
+    req.on('close', cleanup);
   }
-
-  const keepAlive = setInterval(() => {
-    if (!closed) {
-      console.log(`[SSE] Sending keepalive for research ID: ${id}`);
-      res.write(': keepalive\n\n');
-    }
-  }, 15000);
-
-  res.on('close', () => {
-    console.log(`[SSE] Client disconnected for research ID: ${id}`);
-
-    closed = true;
-    clearInterval(keepAlive);
-    unsubscribe();
-
-    console.log(`[SSE] Cleanup completed for research ID: ${id}`);
-  });
-}
-
 }

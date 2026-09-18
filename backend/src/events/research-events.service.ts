@@ -1,13 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ResearchProgressEvent } from '../common/interfaces/research.interface';
 
-type EventCallback = (event: ResearchProgressEvent) => void;
+type ResearchProgressEventWithId = ResearchProgressEvent & {
+  id: string;
+};
+
+type EventCallback = (event: ResearchProgressEventWithId) => void;
 
 @Injectable()
 export class ResearchEventsService {
   private readonly logger = new Logger(ResearchEventsService.name);
   private readonly subscribers = new Map<string, Set<EventCallback>>();
-  private readonly recentEvents = new Map<string, ResearchProgressEvent[]>();
+  private readonly recentEvents = new Map<string, ResearchProgressEventWithId[]>();
+  private readonly seqCounters = new Map<string, number>();
   private readonly maxRecentEvents = 100;
 
   publish(
@@ -17,7 +22,12 @@ export class ResearchEventsService {
     message: string,
     data?: Record<string, unknown>,
   ): void {
+    const seq = (this.seqCounters.get(researchId) || 0) + 1;
+    this.seqCounters.set(researchId, seq);
+
     const progressEvent: ResearchProgressEvent = {
+      id: `${researchId}-${seq}`,
+      seq,
       researchId,
       event,
       progress,
@@ -68,8 +78,18 @@ export class ResearchEventsService {
     return this.recentEvents.get(researchId) || [];
   }
 
+  getEventsSince(researchId: string, lastEventId: string): ResearchProgressEvent[] {
+    const recent = this.recentEvents.get(researchId) || [];
+    const idx = recent.findIndex((e) => e.id === lastEventId);
+    if (idx === -1) {
+      return recent;
+    }
+    return recent.slice(idx + 1);
+  }
+
   clearEvents(researchId: string): void {
     this.recentEvents.delete(researchId);
     this.subscribers.delete(researchId);
+    this.seqCounters.delete(researchId);
   }
 }
