@@ -1,0 +1,56 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HealthController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const health_service_1 = require("./health.service");
+let HealthController = class HealthController {
+    constructor(healthService) {
+        this.healthService = healthService;
+    }
+    async checkHealth() {
+        return this.healthService.checkHealth();
+    }
+};
+exports.HealthController = HealthController;
+__decorate([
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Check health of all services' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Health status of API, MongoDB, Redis, Pinecone, SerpApi',
+        schema: {
+            type: 'object',
+            properties: {
+                status: { type: 'string', example: 'ok' },
+                services: {
+                    type: 'object',
+                    properties: {
+                        mongodb: { type: 'string', example: 'up' },
+                        redis: { type: 'string', example: 'up' },
+                        pinecone: { type: 'string', example: 'configured' },
+                        serpapi: { type: 'string', example: 'configured' },
+                    },
+                },
+            },
+        },
+    }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], HealthController.prototype, "checkHealth", null);
+exports.HealthController = HealthController = __decorate([
+    (0, swagger_1.ApiTags)('health'),
+    (0, common_1.Controller)('health'),
+    __metadata("design:paramtypes", [health_service_1.HealthService])
+], HealthController);
+//# sourceMappingURL=health.controller.js.map
