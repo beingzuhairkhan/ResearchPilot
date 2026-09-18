@@ -37,6 +37,8 @@ export function connectToResearchStream(
   handlers: StreamHandlers,
 ): StreamConnection {
   if (useMock) {
+    console.log('[SSE] MOCK MODE ENABLED');
+
     return mockApi.connectMockStream(
       researchId,
       handlers.onEvent,
@@ -58,59 +60,134 @@ export function connectToResearchStream(
     eventName: string,
     event: MessageEvent,
   ) => {
+    console.group(`[SSE] EVENT: ${eventName}`);
+
+    console.log('Event name:', eventName);
+    console.log('Raw event:', event);
+    console.log('Raw event.data:', event.data);
+    console.log(
+      'Raw event.data type:',
+      typeof event.data,
+    );
+
+    let parsed: any;
+
     try {
-      const parsed = JSON.parse(event.data);
+      parsed = JSON.parse(event.data);
 
-      const type =
-        parsed.event ||
-        parsed.type ||
-        eventName;
+      console.log(
+        'Parsed JSON:',
+        parsed,
+      );
 
-      const data =
-        parsed.data !== undefined
-          ? parsed.data
-          : parsed;
-
-      console.log('[SSE] received:', {
-        type,
-        data,
-      });
-
-      handlers.onEvent({
-        type,
-        data,
-        timestamp:
-          parsed.timestamp ||
-          new Date().toISOString(),
-      });
+      console.log(
+        'Parsed JSON pretty:',
+        JSON.stringify(
+          parsed,
+          null,
+          2,
+        ),
+      );
     } catch (error) {
       console.error(
-        '[SSE] parse error:',
+        'JSON parse failed:',
         error,
       );
 
-      handlers.onEvent({
-        type: eventName,
-        data: {
-          raw: event.data,
-        },
-        timestamp: new Date().toISOString(),
-      });
+      console.log(
+        'Using raw data:',
+        event.data,
+      );
+
+      parsed = {
+        raw: event.data,
+      };
     }
+
+    console.log(
+      'Complete backend payload:',
+      parsed,
+    );
+
+    const type =
+      parsed?.event ||
+      parsed?.type ||
+      eventName;
+
+    const data =
+      parsed?.data !== undefined
+        ? parsed.data
+        : parsed;
+
+    console.log(
+      'Resolved type:',
+      type,
+    );
+
+    console.log(
+      'Resolved data:',
+      data,
+    );
+
+    console.log(
+      'Resolved data pretty:',
+      JSON.stringify(
+        data,
+        null,
+        2,
+      ),
+    );
+
+    console.groupEnd();
+
+    handlers.onEvent({
+      type,
+      data,
+      timestamp:
+        parsed?.timestamp ||
+        new Date().toISOString(),
+    });
   };
 
   const connect = () => {
-    if (closed) return;
+    if (closed) {
+      return;
+    }
 
     console.log(
-      '[SSE] connecting:',
+      '====================================',
+    );
+
+    console.log(
+      '[SSE] CONNECTING',
+    );
+
+    console.log(
+      '[SSE] URL:',
       url,
     );
 
-    eventSource = new EventSource(url);
+    console.log(
+      '[SSE] Research ID:',
+      researchId,
+    );
+
+    console.log(
+      '====================================',
+    );
+
+    eventSource =
+      new EventSource(url);
 
     eventSource.onopen = () => {
-      console.log('[SSE] connected');
+      console.log(
+        '[SSE] CONNECTION OPENED',
+      );
+
+      console.log(
+        '[SSE] readyState:',
+        eventSource?.readyState,
+      );
 
       reconnectAttempts = 0;
     };
@@ -118,6 +195,10 @@ export function connectToResearchStream(
     eventSource.onmessage = (
       event,
     ) => {
+      console.log(
+        '[SSE] DEFAULT MESSAGE EVENT',
+      );
+
       handleEvent(
         'message',
         event,
@@ -141,21 +222,35 @@ export function connectToResearchStream(
     eventSource.onerror = (
       error,
     ) => {
+      console.group(
+        '[SSE] CONNECTION ERROR',
+      );
+
       console.error(
-        '[SSE] error:',
+        'Error object:',
         error,
       );
 
+      console.log(
+        'readyState:',
+        eventSource?.readyState,
+      );
+
+      console.log(
+        'URL:',
+        eventSource?.url,
+      );
+
+      console.groupEnd();
+
       handlers.onError(error);
+
+      if (closed) {
+        return;
+      }
 
       eventSource?.close();
       eventSource = null;
-
-      if (
-        closed
-      ) {
-        return;
-      }
 
       if (
         reconnectAttempts <
@@ -171,7 +266,7 @@ export function connectToResearchStream(
         );
 
         console.log(
-          `[SSE] reconnecting in ${delay}ms`,
+          `[SSE] RECONNECTING IN ${delay}ms`,
         );
 
         reconnectTimer =
@@ -180,6 +275,10 @@ export function connectToResearchStream(
             delay,
           );
       } else {
+        console.error(
+          '[SSE] MAX RECONNECT ATTEMPTS REACHED',
+        );
+
         handlers.onClose();
       }
     };
@@ -189,6 +288,10 @@ export function connectToResearchStream(
 
   return {
     close: () => {
+      console.log(
+        '[SSE] MANUAL CLOSE',
+      );
+
       closed = true;
 
       if (
@@ -205,9 +308,7 @@ export function connectToResearchStream(
 
       eventSource = null;
 
-      console.log(
-        '[SSE] closed',
-      );
+      handlers.onClose();
     },
   };
 }
