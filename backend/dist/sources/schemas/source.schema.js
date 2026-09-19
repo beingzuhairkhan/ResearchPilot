@@ -12,6 +12,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SourceSchema = exports.Source = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
 const source_type_enum_1 = require("../../common/enums/source-type.enum");
+const safeDate = (value) => {
+    if (value === null || value === undefined || value === '')
+        return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
 let Source = class Source {
 };
 exports.Source = Source;
@@ -52,7 +58,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Source.prototype, "author", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: Date, default: null, index: true }),
+    (0, mongoose_1.Prop)({ type: Date, default: null, index: true, set: safeDate }),
     __metadata("design:type", Object)
 ], Source.prototype, "publishedAt", void 0);
 __decorate([

@@ -10,7 +10,7 @@ export declare class ResearchRepository {
     constructor(sessionModel: Model<ResearchSessionDocument>, taskModel: Model<ResearchTaskDocument>);
     createSession(data: Partial<ResearchSession>): Promise<ResearchSessionDocument>;
     findSessionById(id: string): Promise<ResearchSessionDocument | null>;
-    updateSession(id: string, updates: Partial<ResearchSession>): Promise<ResearchSessionDocument | null>;
+    updateSession(researchId: string, updates: Partial<ResearchSession>): Promise<ResearchSession | null>;
     deleteSession(id: string): Promise<void>;
     findSessionsPaginated(page: number, limit: number, status?: ResearchStatus, search?: string): Promise<{
         sessions: ResearchSessionDocument[];

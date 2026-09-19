@@ -4,11 +4,13 @@ exports.ResearchStatus = void 0;
 var ResearchStatus;
 (function (ResearchStatus) {
     ResearchStatus["QUEUED"] = "queued";
+    ResearchStatus["CREATED"] = "created";
     ResearchStatus["PLANNING"] = "planning";
     ResearchStatus["SEARCHING"] = "searching";
     ResearchStatus["COLLECTING"] = "collecting";
     ResearchStatus["PROCESSING"] = "processing";
     ResearchStatus["INDEXING"] = "indexing";
+    ResearchStatus["RAG_RETRIEVAL"] = "rag_retrieval";
     ResearchStatus["ANALYZING"] = "analyzing";
     ResearchStatus["COMPARING"] = "comparing";
     ResearchStatus["GENERATING_REPORT"] = "generating_report";

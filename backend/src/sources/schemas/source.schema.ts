@@ -2,6 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { SourceType, ContentStatus } from '../../common/enums/source-type.enum';
 
+
+const safeDate = (value: unknown): Date | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const date = new Date(value as string | number | Date);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 @Schema({ timestamps: true, collection: 'sources' })
 export class Source {
   @Prop({ required: true, index: true })
@@ -31,7 +38,7 @@ export class Source {
   @Prop({ type: String, default: null })
   author!: string | null;
 
-  @Prop({ type: Date, default: null, index: true })
+  @Prop({ type: Date, default: null, index: true, set: safeDate })
   publishedAt!: Date | null;
 
   @Prop({ type: Date, default: Date.now })

@@ -57,27 +57,75 @@ let ResearchController = ResearchController_1 = class ResearchController {
         const result = await this.researchService.getResearchSources(id, query);
         return { success: true, ...result };
     }
-    async streamResearch(id, res) {
+    async streamResearch(id, req, res) {
+        this.logger.log(`[SSE] Client connecting researchId=${id}`);
         res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('X-Accel-Buffering', 'no');
         res.flushHeaders();
-        const recentEvents = this.eventsService.getRecentEvents(id);
-        for (const evt of recentEvents) {
-            res.write(`event: ${evt.event}\n`);
-            res.write(`data: ${JSON.stringify(evt)}\n\n`);
+        res.write('retry: 3000\n\n');
+        let closed = false;
+        let keepAlive;
+        let unsubscribe = () => { };
+        const cleanup = () => {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            if (keepAlive) {
+                clearInterval(keepAlive);
+            }
+            unsubscribe();
+            this.logger.log(`[SSE] Connection cleaned up researchId=${id}`);
+        };
+        const sentEventIds = new Set();
+        const writeEvent = (event) => {
+            if (closed) {
+                return;
+            }
+            if (event.id && sentEventIds.has(event.id)) {
+                return;
+            }
+            try {
+                if (event.id) {
+                    res.write(`id: ${event.id}\n`);
+                    sentEventIds.add(event.id);
+                }
+                res.write(`event: ${event.event}\n`);
+                res.write(`data: ${JSON.stringify(event)}\n\n`);
+            }
+            catch (error) {
+                this.logger.error(`[SSE] Write failed researchId=${id}`, error);
+                cleanup();
+            }
+        };
+        unsubscribe = this.eventsService.subscribe(id, writeEvent);
+        const lastEventId = req.headers['last-event-id'];
+        const events = lastEventId
+            ? this.eventsService.getEventsSince(id, lastEventId)
+            : this.eventsService.getRecentEvents(id);
+        for (const event of events) {
+            writeEvent(event);
         }
-        const unsubscribe = this.eventsService.subscribe(id, (evt) => {
-            res.write(`event: ${evt.event}\n`);
-            res.write(`data: ${JSON.stringify(evt)}\n\n`);
-        });
-        const keepAlive = setInterval(() => {
-            res.write(': keepalive\n\n');
+        keepAlive = setInterval(() => {
+            if (closed) {
+                return;
+            }
+            try {
+                res.write(': keepalive\n\n');
+            }
+            catch (error) {
+                this.logger.error(`[SSE] Keepalive failed researchId=${id}`, error);
+                cleanup();
+            }
         }, 15000);
         res.on('close', () => {
-            clearInterval(keepAlive);
-            unsubscribe();
+            this.logger.log(`[SSE] Response closed researchId=${id}`);
+            cleanup();
+        });
+        req.on('close', () => {
+            cleanup();
         });
     }
 };
@@ -141,11 +189,14 @@ __decorate([
 ], ResearchController.prototype, "getResearchSources", null);
 __decorate([
     (0, common_1.Get)(':id/stream'),
-    (0, swagger_1.ApiOperation)({ summary: 'SSE stream of research progress events' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'SSE stream of research progress events',
+    }),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Res)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], ResearchController.prototype, "streamResearch", null);
 exports.ResearchController = ResearchController = ResearchController_1 = __decorate([

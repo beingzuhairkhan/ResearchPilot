@@ -25,7 +25,7 @@ export class ResearchService {
     private readonly configService: ConfigService,
     @InjectModel(Source.name) private sourceModel: Model<SourceDocument>,
     @InjectModel(Report.name) private reportModel: Model<ReportDocument>,
-  ) {}
+  ) { }
 
   async createResearch(dto: CreateResearchDto): Promise<{ researchId: string; status: string }> {
     if (!dto.question || dto.question.trim().length < 10) {
@@ -56,10 +56,13 @@ export class ResearchService {
     const researchId = session._id.toString();
     this.logger.log(`[Research] Created researchId=${researchId} question="${dto.question}"`);
 
-    this.eventsService.publish(researchId, 'research.created', 0, 'Research session created', {
-      mode,
-      maxSources,
-    });
+    this.eventsService.publish(
+      researchId,
+      'research.created',
+      0,
+      'Research session created',
+    );
+
 
     await this.queueService.addResearchJob(researchId);
 
@@ -76,7 +79,7 @@ export class ResearchService {
 
   async getResearchHistory(query: ResearchQueryDto) {
     const page = query.page || 1;
-    const limit = query.limit || 10;
+    const limit =query.limit || 10;
     const { sessions, total } = await this.repository.findSessionsPaginated(
       page,
       limit,
@@ -117,7 +120,6 @@ export class ResearchService {
         type: t.type,
         query: t.query,
         purpose: t.purpose,
-        status: t.status,
       })),
     };
   }

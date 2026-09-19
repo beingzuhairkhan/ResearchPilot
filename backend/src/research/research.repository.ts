@@ -13,7 +13,7 @@ export class ResearchRepository {
   constructor(
     @InjectModel(ResearchSession.name) private sessionModel: Model<ResearchSessionDocument>,
     @InjectModel(ResearchTask.name) private taskModel: Model<ResearchTaskDocument>,
-  ) {}
+  ) { }
 
   async createSession(data: Partial<ResearchSession>): Promise<ResearchSessionDocument> {
     const session = new this.sessionModel(data);
@@ -23,12 +23,15 @@ export class ResearchRepository {
   async findSessionById(id: string): Promise<ResearchSessionDocument | null> {
     return this.sessionModel.findById(id).exec();
   }
-
   async updateSession(
-    id: string,
+    researchId: string,
     updates: Partial<ResearchSession>,
-  ): Promise<ResearchSessionDocument | null> {
-    return this.sessionModel.findByIdAndUpdate(id, updates, { new: true }).exec();
+  ): Promise<ResearchSession | null> {
+    return this.sessionModel.findByIdAndUpdate(
+      researchId,
+      { $set: updates },
+      { new: true },
+    ).exec();
   }
 
   async deleteSession(id: string): Promise<void> {

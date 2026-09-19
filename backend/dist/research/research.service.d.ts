@@ -46,7 +46,6 @@ export declare class ResearchService {
             type: string;
             query: string;
             purpose: string;
-            status: import("../common/enums/research-task-status.enum").ResearchTaskStatus;
         }[];
     } | null>;
     getResearchSources(id: string, query: SourceQueryDto): Promise<{

@@ -1,24 +1,15 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Copy,
-  Printer,
-  PenLine,
-  ArrowLeft,
-} from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Copy, Printer, PenLine, ArrowLeft } from "lucide-react";
+import PageContainer from "@/components/layout/PageContainer";
+import ReportViewer from "@/components/research/ReportViewer";
+import CitationModal from "@/components/research/CitationModal";
+import { ReportSkeleton } from "@/components/ui/Skeleton";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { useToast } from "@/components/ui/Toast";
+import { researchApi } from "@/services/researchApi";
 
-import PageContainer from '@/components/layout/PageContainer';
-import ReportViewer from '@/components/research/ReportViewer';
-import CitationModal from '@/components/research/CitationModal';
-import { ReportSkeleton } from '@/components/ui/Skeleton';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { useToast } from '@/components/ui/Toast';
-import { researchApi } from '@/services/researchApi';
-
-import type {
-  Report as ReportType,
-  CitationSource,
-} from '@/types/research';
+import type { Report as ReportType, CitationSource } from "@/types/research";
 
 export function ResearchReport() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +26,7 @@ export function ResearchReport() {
 
   useEffect(() => {
     if (!id) {
-      setError('Research ID is missing');
+      setError("Research ID is missing");
       setLoading(false);
       return;
     }
@@ -59,7 +50,7 @@ export function ResearchReport() {
         const reportData = rep?.data ?? rep;
 
         if (!reportData) {
-          throw new Error('Report data is empty');
+          throw new Error("Report data is empty");
         }
 
         setReport(reportData as ReportType);
@@ -76,13 +67,9 @@ export function ResearchReport() {
           return;
         }
 
-        console.error('Failed to load research report:', e);
+        console.error("Failed to load research report:", e);
 
-        setError(
-          e instanceof Error
-            ? e.message
-            : 'Failed to load report'
-        );
+        setError(e instanceof Error ? e.message : "Failed to load report");
 
         setLoading(false);
       }
@@ -101,25 +88,16 @@ export function ResearchReport() {
 
       await navigator.clipboard.writeText(url);
 
-      toast(
-        'success',
-        'Link copied to clipboard'
-      );
+      toast("success", "Link copied to clipboard");
     } catch {
-      toast(
-        'error',
-        'Failed to copy link'
-      );
+      toast("error", "Failed to copy link");
     }
   };
 
   const handleExport = () => {
     window.print();
 
-    toast(
-      'info',
-      "Use your browser's print dialog to save as PDF"
-    );
+    toast("info", "Use your browser's print dialog to save as PDF");
   };
 
   const handleCitationClick = (index: number) => {
@@ -140,7 +118,6 @@ export function ResearchReport() {
     );
   }
 
-
   if (error || !report) {
     return (
       <PageContainer maxWidth="md">
@@ -148,7 +125,7 @@ export function ResearchReport() {
           title="Report not available"
           message={
             error ||
-            'This research report may still be generating or may have failed.'
+            "This research report may still be generating or may have failed."
           }
           onRetry={handleRetry}
         />
@@ -160,24 +137,22 @@ export function ResearchReport() {
 
   return (
     <PageContainer maxWidth="lg">
-
       <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-6 shadow-card">
         {/* Back button */}
         <div className="flex items-center gap-2 text-xs text-neutral-400">
           <button
             type="button"
-            onClick={() => navigate(`/research/${id}`)}
+            onClick={() => navigate(`/history`)}
             className="flex items-center gap-1 transition-colors hover:text-neutral-600"
           >
             <ArrowLeft className="h-3 w-3" />
-
             Back to research
           </button>
         </div>
 
         {/* Research question */}
         <h1 className="mt-3 text-balance text-xl font-semibold text-neutral-900">
-          {session?.question || report.title || 'Research Report'}
+          {session?.question || report.title || "Research Report"}
         </h1>
 
         {/* Actions */}
@@ -189,7 +164,6 @@ export function ResearchReport() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
           >
             <Copy className="h-3.5 w-3.5" />
-
             Copy Link
           </button>
 
@@ -200,34 +174,23 @@ export function ResearchReport() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
           >
             <Printer className="h-3.5 w-3.5" />
-
             Export
           </button>
 
           {/* New research */}
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-700"
           >
             <PenLine className="h-3.5 w-3.5" />
-
             New Research
           </button>
         </div>
       </div>
 
-      {/* =========================================================
-          Report Content
-      ========================================================= */}
-      <ReportViewer
-        report={report}
-        onCitationClick={handleCitationClick}
-      />
+      <ReportViewer report={report} onCitationClick={handleCitationClick} />
 
-      {/* =========================================================
-          Citation Modal
-      ========================================================= */}
       <CitationModal
         index={citationIndex}
         sources={sources}

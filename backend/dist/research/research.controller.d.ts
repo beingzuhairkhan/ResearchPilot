@@ -1,9 +1,9 @@
-import { Response } from 'express';
 import { ResearchService } from './research.service';
 import { CreateResearchDto } from './dto/create-research.dto';
 import { ResearchQueryDto } from './dto/research-query.dto';
 import { SourceQueryDto } from './dto/source-query.dto';
 import { ResearchEventsService } from '../events/research-events.service';
+import { Request, Response } from 'express';
 export declare class ResearchController {
     private readonly researchService;
     private readonly eventsService;
@@ -50,7 +50,6 @@ export declare class ResearchController {
                 type: string;
                 query: string;
                 purpose: string;
-                status: import("../common/enums/research-task-status.enum").ResearchTaskStatus;
             }[];
         };
     }>;
@@ -74,5 +73,5 @@ export declare class ResearchController {
         };
         success: boolean;
     }>;
-    streamResearch(id: string, res: Response): Promise<void>;
+    streamResearch(id: string, req: Request, res: Response): Promise<void>;
 }

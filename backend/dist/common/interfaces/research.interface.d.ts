@@ -127,12 +127,12 @@ export interface ResearchSessionData {
     metrics?: ResearchMetrics;
 }
 export interface ResearchProgressEvent {
-  id: string;
-  seq: number;
-  researchId: string;
-  event: string;
-  progress: number;
-  message: string;
-  data?: Record<string, unknown>;
-  timestamp: Date;
+    id: string;
+    seq: number;
+    researchId: string;
+    event: string;
+    progress: number;
+    message: string;
+    data?: Record<string, unknown>;
+    timestamp: Date;
 }

@@ -1,5 +1,19 @@
-export declare const RESEARCH_STAGES: readonly ["queued", "planning", "searching", "collecting", "processing", "indexing", "analyzing", "comparing", "generating_report", "completed"];
-export declare const STAGE_PROGRESS: Record<string, number>;
+export declare enum ResearchStatus {
+    QUEUED = "queued",
+    CREATED = "created",
+    PLANNING = "planning",
+    SEARCHING = "searching",
+    COLLECTING = "collecting",
+    PROCESSING = "processing",
+    INDEXING = "indexing",
+    RAG_RETRIEVAL = "rag_retrieval",
+    ANALYZING = "analyzing",
+    COMPARING = "comparing",
+    GENERATING_REPORT = "generating_report",
+    COMPLETED = "completed",
+    FAILED = "failed"
+}
+export declare const STAGE_PROGRESS: Record<ResearchStatus, number>;
 export declare const SERPAPI_BASE_URL = "https://serpapi.com/search";
 export declare const REDIS_CONNECTION: {
     maxRetriesPerRequest: null;

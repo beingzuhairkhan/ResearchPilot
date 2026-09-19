@@ -3,23 +3,18 @@ import { CheckCircle2, XCircle, Server, Info } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 import { Card } from '@/components/ui/Card';
 import { baseURL } from '@/services/api';
-import { mockApi } from '@/services/mockApi';
 
 export function Settings() {
   const [connected, setConnected] = useState<boolean | null>(null);
-  const useMock = mockApi.isEnabled;
 
   useEffect(() => {
-    if (useMock) {
-      setConnected(true);
-      return;
-    }
+    
     const controller = new AbortController();
     fetch(`${baseURL}/health`, { signal: controller.signal, mode: 'no-cors' })
       .then(() => setConnected(true))
       .catch(() => setConnected(false));
     return () => controller.abort();
-  }, [useMock]);
+  }, []);
 
   return (
     <PageContainer maxWidth="md">
@@ -55,12 +50,7 @@ export function Settings() {
             <span className="text-sm text-neutral-600">Backend URL</span>
             <span className="font-mono text-xs text-neutral-500">{baseURL}</span>
           </div>
-          <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
-            <span className="text-sm text-neutral-600">Mock API</span>
-            <span className={`text-xs font-medium ${useMock ? 'text-warning-700' : 'text-neutral-500'}`}>
-              {useMock ? 'Enabled' : 'Disabled'}
-            </span>
-          </div>
+      
         </div>
       </Card>
 

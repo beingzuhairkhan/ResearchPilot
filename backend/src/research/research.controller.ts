@@ -28,7 +28,7 @@ export class ResearchController {
   constructor(
     private readonly researchService: ResearchService,
     private readonly eventsService: ResearchEventsService,
-  ) { }
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new research session' })
@@ -87,122 +87,112 @@ export class ResearchController {
   }
 
   @Get(':id/stream')
-@ApiOperation({ summary: 'SSE stream of research progress events' })
-async streamResearch(
-  @Param('id') id: string,
-  @Req() req: Request,
-  @Res() res: Response,
-) {
-  console.log(`[SSE] Client connecting for research ID: ${id}`);
+  @ApiOperation({
+    summary: 'SSE stream of research progress events',
+  })
+  async streamResearch(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    this.logger.log(`[SSE] Client connecting researchId=${id}`);
 
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-  res.write('retry: 3000\n\n');
+    res.setHeader('Content-Type', 'text/event-stream');
 
-  console.log(`[SSE] Headers flushed for research ID: ${id}`);
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
 
-  let closed = false;
-  let keepAlive: NodeJS.Timeout;
-  let unsubscribe: () => void = () => {};
+    res.setHeader('Connection', 'keep-alive');
 
-  const cleanup = () => {
-    if (closed) return;
-    console.log(`[SSE] Cleaning up connection for research ID: ${id}`);
-    closed = true;
-    clearInterval(keepAlive);
-    unsubscribe();
-  };
+    res.setHeader('X-Accel-Buffering', 'no');
 
-  const sentEventIds = new Set<string>();
+    res.flushHeaders();
 
-  const writeEvent = (evt: ResearchProgressEvent) => {
-    if (closed) {
-      console.log(`[SSE] Skipping write, connection closed. event=${evt.event} id=${evt.id}`);
-      return;
-    }
-    if (evt.id && sentEventIds.has(evt.id)) {
-      console.log(`[SSE] Skipping duplicate event id=${evt.id}`);
-      return;
-    }
+    res.write('retry: 3000\n\n');
 
-    try {
-      console.log(`[SSE] Writing event for ${id}:`, {
-        id: evt.id,
-        event: evt.event,
-        progress: evt.progress,
-        message: evt.message,
-      });
+    let closed = false;
 
-      if (evt.id) {
-        res.write(`id: ${evt.id}\n`);
-        sentEventIds.add(evt.id);
+    let keepAlive: NodeJS.Timeout | undefined;
+
+    let unsubscribe: () => void = () => {};
+
+    const cleanup = () => {
+      if (closed) {
+        return;
       }
-      res.write(`event: ${evt.event}\n`);
-      res.write(`data: ${JSON.stringify(evt)}\n\n`);
-    } catch (err) {
-      console.error(`[SSE] Write failed for research ID: ${id}`, err);
+
+      closed = true;
+
+      if (keepAlive) {
+        clearInterval(keepAlive);
+      }
+
+      unsubscribe();
+
+      this.logger.log(`[SSE] Connection cleaned up researchId=${id}`);
+    };
+
+    const sentEventIds = new Set<string>();
+
+    const writeEvent = (event: ResearchProgressEvent) => {
+      if (closed) {
+        return;
+      }
+
+      if (event.id && sentEventIds.has(event.id)) {
+        return;
+      }
+
+      try {
+        if (event.id) {
+          res.write(`id: ${event.id}\n`);
+
+          sentEventIds.add(event.id);
+        }
+
+        res.write(`event: ${event.event}\n`);
+
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch (error) {
+        this.logger.error(`[SSE] Write failed researchId=${id}`, error);
+
+        cleanup();
+      }
+    };
+
+    unsubscribe = this.eventsService.subscribe(id, writeEvent);
+
+    const lastEventId = req.headers['last-event-id'] as string | undefined;
+
+    const events = lastEventId
+      ? this.eventsService.getEventsSince(id, lastEventId)
+      : this.eventsService.getRecentEvents(id);
+
+    for (const event of events) {
+      writeEvent(event);
+    }
+
+    keepAlive = setInterval(() => {
+      if (closed) {
+        return;
+      }
+
+      try {
+        res.write(': keepalive\n\n');
+      } catch (error) {
+        this.logger.error(`[SSE] Keepalive failed researchId=${id}`, error);
+
+        cleanup();
+      }
+    }, 15000);
+
+    res.on('close', () => {
+      this.logger.log(`[SSE] Response closed researchId=${id}`);
+
       cleanup();
-    }
-  };
+    });
 
-  const buffer: ResearchProgressEvent[] = [];
-  let backlogFlushed = false;
-  const bufferingWriter = (evt: ResearchProgressEvent) => {
-    if (!backlogFlushed) {
-      console.log(`[SSE] Buffering live event (backlog not flushed yet): ${evt.event} id=${evt.id}`);
-      buffer.push(evt);
-    } else {
-      writeEvent(evt);
-    }
-  };
-
-  console.log(`[SSE] Subscribing to events for research ID: ${id}`);
-  unsubscribe = this.eventsService.subscribe(id, bufferingWriter);
-  console.log(`[SSE] Subscribed successfully for research ID: ${id}`);
-
-  const lastEventId = req.headers['last-event-id'] as string | undefined;
-  console.log(`[SSE] Last-Event-ID header: ${lastEventId ?? '(none)'}`);
-
-  const recentEvents = lastEventId
-    ? this.eventsService.getEventsSince(id, lastEventId)
-    : this.eventsService.getRecentEvents(id);
-
-  console.log(`[SSE] Found ${recentEvents.length} recent/backlog events for research ID: ${id}`);
-
-  for (const evt of recentEvents) {
-    writeEvent(evt);
-  }
-
-  backlogFlushed = true;
-  console.log(`[SSE] Backlog flushed, replaying ${buffer.length} buffered live events for research ID: ${id}`);
-
-  for (const evt of buffer) {
-    writeEvent(evt);
-  }
-  buffer.length = 0;
-
-  keepAlive = setInterval(() => {
-    if (closed) return;
-    try {
-      console.log(`[SSE] Sending keepalive for research ID: ${id}`);
-      res.write(': keepalive\n\n');
-    } catch (err) {
-      console.error(`[SSE] Keepalive write failed for research ID: ${id}`, err);
+    req.on('close', () => {
       cleanup();
-    }
-  }, 15000);
-
-  res.on('close', () => {
-    console.log(`[SSE] Response closed by client for research ID: ${id}`);
-    cleanup();
-  });
-
-  req.on('close', () => {
-    console.log(`[SSE] Request closed for research ID: ${id}`);
-    cleanup();
-  });
-}
+    });
+  }
 }

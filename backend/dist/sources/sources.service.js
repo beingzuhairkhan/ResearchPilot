@@ -28,6 +28,10 @@ let SourcesService = SourcesService_1 = class SourcesService {
         this.deduplicationService = deduplicationService;
         this.normalizerService = normalizerService;
         this.logger = new common_1.Logger(SourcesService_1.name);
+        this.toDate = (v) => {
+            const d = v ? new Date(v) : null;
+            return d && !Number.isNaN(d.getTime()) ? d : null;
+        };
     }
     async collectSources(researchId, results, maxSources, sourceTypeOverride, onProgress) {
         const collected = [];
@@ -84,8 +88,7 @@ let SourcesService = SourcesService_1 = class SourcesService {
             updates.canonicalUrl = canonicalUrl;
         if (author !== undefined)
             updates.author = author;
-        if (publishedAt)
-            updates.publishedAt = publishedAt;
+        updates.publishedAt = this.toDate(publishedAt);
         if (content)
             updates.hash = (0, url_utils_1.generateContentHash)(content);
         await this.sourceModel.findByIdAndUpdate(sourceId, updates).exec();

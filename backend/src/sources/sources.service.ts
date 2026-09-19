@@ -28,14 +28,14 @@ export class SourcesService {
     @InjectModel(Source.name) private sourceModel: Model<SourceDocument>,
     private readonly deduplicationService: SourceDeduplicationService,
     private readonly normalizerService: SourceNormalizerService,
-  ) {}
+  ) { }
 
   async collectSources(
     researchId: string,
     results: NormalizedSearchResult[],
     maxSources: number,
-  sourceTypeOverride?: SourceType,
-  onProgress?: (count: number) => void,
+    sourceTypeOverride?: SourceType,
+    onProgress?: (count: number) => void,
   ): Promise<SourceDocument[]> {
     const collected: SourceDocument[] = [];
     const seenHashes = new Set<string>();
@@ -93,19 +93,25 @@ export class SourcesService {
     return this.sourceModel.find({ researchId }).sort({ relevanceScore: -1 }).exec();
   }
 
+  private toDate = (v: unknown): Date | null => {
+    const d = v ? new Date(v as string | number) : null;
+    return d && !Number.isNaN(d.getTime()) ? d : null;
+  };
+
   async updateSourceContent(
     sourceId: string,
     content: string,
     contentStatus: ContentStatus,
-  canonicalUrl?: string,
+    canonicalUrl?: string,
     author?: string,
-    publishedAt?: Date,
+    publishedAt?: unknown,
   ): Promise<void> {
     const updates: Record<string, unknown> = { content, contentStatus };
     if (canonicalUrl) updates.canonicalUrl = canonicalUrl;
     if (author !== undefined) updates.author = author;
-    if (publishedAt) updates.publishedAt = publishedAt;
+    updates.publishedAt = this.toDate(publishedAt);
     if (content) updates.hash = generateContentHash(content);
+
     await this.sourceModel.findByIdAndUpdate(sourceId, updates).exec();
   }
 
@@ -157,3 +163,42 @@ export class SourcesService {
     return this.deduplicationService.deduplicate(researchId, this.sourceModel);
   }
 }
+
+// ```mermaid
+// flowchart TD
+//     A["React Frontend<br/>user submits research question"] --> B["NestJS API<br/>ResearchController + ResearchService"]
+//     B --> C[("MongoDB<br/>research session created")]
+//     B --> D["Job Queue (Redis)<br/>ResearchQueueService adds job"]
+//     D --> E["Worker<br/>ResearchProcessorService"]
+//     E --> F["Orchestrator<br/>ResearchOrchestratorService"]
+
+//     F --> G["Planner Agent<br/>LLM creates 3 search tasks"]
+//     G --> H["Researcher Agent<br/>SerpApi: Google + Google News"]
+//     H --> I["Sources Service<br/>collect + deduplicate sources"]
+//     I --> J["Extractor Service<br/>fetch page content, author, publishedAt"]
+//     J --> K["Chunking Service<br/>1000 chars, 150 overlap"]
+//     K --> L[("Pinecone<br/>vector index")]
+//     L --> M["RAG Retrieval<br/>top 15 evidence chunks"]
+//     M --> N["Analyzer Agent<br/>extract claims"]
+//     N --> O["Comparison Agent<br/>agreements and conflicts"]
+//     O --> P["Reporter Agent<br/>final report + metrics"]
+
+//     I --> C
+//     J --> C
+//     P --> C
+
+//     F -.->|publishes stage events| Q["Redis Pub/Sub<br/>ResearchEventsService"]
+//     Q --> R["NestJS SSE endpoint<br/>research:events channel"]
+//     R --> S["useResearchStream hook<br/>timeline + agent cards"]
+//     S --> A
+
+//     G -.->|failure| X["Orchestrator catch<br/>setFailed + research.failed event"]
+//     H -.->|failure| X
+//     J -.->|skip bad source| I
+//     L -.->|failure| X
+//     N -.->|failure| X
+//     P -.->|failure| X
+//     X --> C
+//     X --> Q
+// ```
+

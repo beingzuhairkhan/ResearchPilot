@@ -59,10 +59,7 @@ let ResearchService = ResearchService_1 = class ResearchService {
         });
         const researchId = session._id.toString();
         this.logger.log(`[Research] Created researchId=${researchId} question="${dto.question}"`);
-        this.eventsService.publish(researchId, 'research.created', 0, 'Research session created', {
-            mode,
-            maxSources,
-        });
+        this.eventsService.publish(researchId, 'research.created', 0, 'Research session created');
         await this.queueService.addResearchJob(researchId);
         return { researchId, status: research_status_enum_1.ResearchStatus.QUEUED };
     }
@@ -109,7 +106,6 @@ let ResearchService = ResearchService_1 = class ResearchService {
                 type: t.type,
                 query: t.query,
                 purpose: t.purpose,
-                status: t.status,
             })),
         };
     }

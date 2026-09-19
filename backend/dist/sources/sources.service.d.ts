@@ -17,7 +17,8 @@ export declare class SourcesService {
     constructor(sourceModel: Model<SourceDocument>, deduplicationService: SourceDeduplicationService, normalizerService: SourceNormalizerService);
     collectSources(researchId: string, results: NormalizedSearchResult[], maxSources: number, sourceTypeOverride?: SourceType, onProgress?: (count: number) => void): Promise<SourceDocument[]>;
     getSourcesByResearchId(researchId: string): Promise<SourceDocument[]>;
-    updateSourceContent(sourceId: string, content: string, contentStatus: ContentStatus, canonicalUrl?: string, author?: string, publishedAt?: Date): Promise<void>;
+    private toDate;
+    updateSourceContent(sourceId: string, content: string, contentStatus: ContentStatus, canonicalUrl?: string, author?: string, publishedAt?: unknown): Promise<void>;
     updateRelevanceScore(sourceId: string, score: number): Promise<void>;
     deleteByResearchId(researchId: string): Promise<void>;
     countByResearchId(researchId: string): Promise<number>;

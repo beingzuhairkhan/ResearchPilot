@@ -20,7 +20,7 @@ export type AgentType =
 export type TimelineStepStatus = 'completed' | 'active' | 'pending' | 'failed';
 
 export interface ResearchSession {
-  id: string;
+  _id: string;
   question: string;
   status: ResearchStatus;
   mode: ResearchMode;

@@ -1,10 +1,12 @@
 export enum ResearchStatus {
   QUEUED = 'queued',
+  CREATED = 'created',
   PLANNING = 'planning',
   SEARCHING = 'searching',
   COLLECTING = 'collecting',
   PROCESSING = 'processing',
   INDEXING = 'indexing',
+  RAG_RETRIEVAL = 'rag_retrieval',
   ANALYZING = 'analyzing',
   COMPARING = 'comparing',
   GENERATING_REPORT = 'generating_report',

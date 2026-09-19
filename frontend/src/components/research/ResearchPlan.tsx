@@ -34,10 +34,6 @@ export function ResearchPlan({
 
   const tasks = plan.tasks ?? [];
 
-  const completed = tasks.filter(
-    (task) => task.status === 'completed'
-  ).length;
-
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-card">
       <div className="mb-5">
@@ -71,9 +67,7 @@ export function ResearchPlan({
           {tasks.length} research tasks
         </p>
 
-        <p className="text-xs text-neutral-400">
-          {completed}/{tasks.length} completed
-        </p>
+        
       </div>
 
       <div className="space-y-3">

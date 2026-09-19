@@ -32,6 +32,8 @@ export declare class ResearchOrchestratorService {
     private reportModel;
     private readonly logger;
     constructor(repository: ResearchRepository, eventsService: ResearchEventsService, plannerService: PlannerService, researcherService: ResearcherService, analyzerService: AnalyzerService, comparisonService: ComparisonService, reporterService: ReporterService, sourcesService: SourcesService, extractorService: SourceExtractorService, ragService: RagService, pineconeService: PineconeService, sessionModel: Model<ResearchSessionDocument>, taskModel: Model<ResearchTaskDocument>, sourceModel: Model<SourceDocument>, reportModel: Model<ReportDocument>);
+    private parseDate;
+    private toISODate;
     runResearch(researchId: string): Promise<void>;
     private updateStage;
     private publishEvent;

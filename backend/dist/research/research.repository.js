@@ -33,8 +33,8 @@ let ResearchRepository = ResearchRepository_1 = class ResearchRepository {
     async findSessionById(id) {
         return this.sessionModel.findById(id).exec();
     }
-    async updateSession(id, updates) {
-        return this.sessionModel.findByIdAndUpdate(id, updates, { new: true }).exec();
+    async updateSession(researchId, updates) {
+        return this.sessionModel.findByIdAndUpdate(researchId, { $set: updates }, { new: true }).exec();
     }
     async deleteSession(id) {
         await this.sessionModel.findByIdAndDelete(id).exec();

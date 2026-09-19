@@ -48,7 +48,7 @@ Rules:
             ],
             temperature: 0.3,
             jsonMode: true,
-            maxTokens: 2000,
+            maxTokens: 4000,
         });
         const plan = this.parsePlan(response.content);
         this.logger.log(`[Planner] Created ${plan.tasks.length} tasks`);

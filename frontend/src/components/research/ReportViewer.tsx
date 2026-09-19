@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import type { Report as ReportType, CitationSource } from '@/types/research';
-
 import ReportSection from './ReportSection';
 import FindingCard from './FindingCard';
 import ConflictCard from './ConflictCard';
@@ -17,7 +16,7 @@ function renderTextWithCitations(
   sources: CitationSource[],
   onClick: (index: number) => void
 ) {
-  // Prevent `.split()` from being called on undefined/null/non-string values
+
   if (typeof text !== 'string' || !text.trim()) {
     return null;
   }
@@ -79,18 +78,7 @@ export function ReportViewer({
       .map((step) => step.replace(/\.$/, ''));
   }, [report.methodology]);
 
-  /*
-   * Normalize key findings.
-   *
-   * Your API currently returns:
-   *
-   * keyFindings: [
-   *   "Indian organisations are transitioning...",
-   *   "91% of Indian leaders prioritize..."
-   * ]
-   *
-   * But FindingCard may expect an object.
-   */
+
   const keyFindings = useMemo(() => {
     if (!Array.isArray(report.keyFindings)) {
       return [];
@@ -120,16 +108,7 @@ export function ReportViewer({
       .filter(Boolean);
   }, [report.keyFindings]);
 
-  /*
-   * Normalize recent developments.
-   *
-   * Your API returns strings:
-   *
-   * recentDevelopments: [
-   *   "TCS-Anthropic ... [10]",
-   *   "TCS launches ... [26]"
-   * ]
-   */
+
   const recentDevelopments = useMemo(() => {
     if (!Array.isArray(report.recentDevelopments)) {
       return [];
@@ -165,13 +144,6 @@ export function ReportViewer({
       .filter(Boolean);
   }, [report.recentDevelopments]);
 
-  /*
-   * Your API currently returns limitations as a STRING:
-   *
-   * limitations: "The analysis relies on..."
-   *
-   * Normalize it to an array.
-   */
   const limitations = useMemo(() => {
     if (Array.isArray(report.limitations)) {
       return report.limitations.filter(
@@ -193,9 +165,6 @@ export function ReportViewer({
   return (
     <div className="space-y-6">
 
-      {/* =====================================================
-          Executive Summary
-      ===================================================== */}
       {typeof report.executiveSummary === 'string' &&
         report.executiveSummary.trim() && (
           <ReportSection title="Executive Summary">
