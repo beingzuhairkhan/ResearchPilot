@@ -1,4 +1,4 @@
-# 🔎 AI Research Agent
+#  AI Research Agent
 
 ## Problem It Solves
 
