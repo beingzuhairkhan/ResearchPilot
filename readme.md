@@ -52,9 +52,6 @@ SerpApi is the discovery layer of the agent. The Researcher Agent calls it for e
 
 Results from all three engines are merged and deduplicated by URL in the Sources Service before the full pages are fetched, chunked and embedded. Running several focused queries across web, news and scholarly sources gives broader, fresher and more credible coverage than a single search.
 
-## Track
-
-**Track:** `<your chosen track>`
 
 ## Architecture
 
