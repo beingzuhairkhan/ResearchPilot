@@ -144,7 +144,7 @@ Open http://localhost:5173 and submit a research question.
 ## Disclosures
 
 - **Project status:** New project. It was built from scratch during this hackathon and did not exist before.
-- **AI tools used:** `<e.g. Claude for code assistance, Llama for the in-app agents. List every tool used>`
+- **AI tools used:** Claude for code assistance and development support.
 
 ## Screenshots
 
